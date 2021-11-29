@@ -1,7 +1,8 @@
-import re
 import unittest
+import re
+from os import path, environ
 from copy import copy
-from os import environ, path
+
 
 DIR = path.realpath(path.dirname(__file__))
 
