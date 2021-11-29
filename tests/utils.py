@@ -1,10 +1,9 @@
-import functools
-import os
-from contextlib import contextmanager
-
-import boto3
 import placebo
-from mock import MagicMock, patch
+import boto3
+import os
+import functools
+from contextlib import contextmanager
+from mock import patch, MagicMock
 
 try:
     file
