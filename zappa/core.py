@@ -230,6 +230,7 @@ ZIP_EXCLUDES = [
     "*.tar.gz",
     "*.hg",
     "pip",
+    "*.egg-info",
     "docutils*",
     "setuputils*",
     "__pycache__/*",
