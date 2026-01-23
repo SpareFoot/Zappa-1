@@ -162,7 +162,7 @@ werkzeug==0.16.1
     # via
     #   -r requirements.in
     #   flask
-wheel==0.36.2
+wheel==0.46.2
     # via -r requirements.in
 wsgi-request-logger==0.4.6
     # via -r requirements.in
