@@ -74,8 +74,8 @@ toml==0.10.2
     #   pep517
 tqdm==4.59.0
     # via -r requirements.in
-troposphere==2.7.0
-    # via -r requirements.in
+troposphere==4.4.1
+    # via -r requirements.in # upgraded from 2.7.0 (use_2to3 breaks with modern setuptools)
 urllib3==1.26.4
     # via
     #   botocore
