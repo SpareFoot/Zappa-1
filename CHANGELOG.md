@@ -1,5 +1,11 @@
 # Zappa Changelog
 
+## 0.54.0
+* Dropping Python 3.6/3.7 support
+* Adding Python 3.9–3.13 support
+* Removing two dependencies (future, six)
+* Migrating test framework from nosetests to pytest
+
 ## 0.53.0
 
 * Deprecated ACME v1 for Lets Encrypt
