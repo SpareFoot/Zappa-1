@@ -21,7 +21,6 @@ import tempfile
 import time
 import uuid
 import zipfile
-from builtins import bytes, int
 from distutils.dir_util import copy_tree
 from io import open
 
