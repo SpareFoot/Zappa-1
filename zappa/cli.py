@@ -22,7 +22,6 @@ import sys
 import tempfile
 import time
 import zipfile
-from builtins import bytes, input
 from datetime import datetime, timedelta
 
 import argcomplete
@@ -38,8 +37,6 @@ from click import BaseCommand, Context
 from click.exceptions import ClickException
 from click.globals import push_context
 from dateutil import parser
-from past.builtins import basestring
-
 from .core import API_GATEWAY_REGIONS, Zappa, logger
 from .utilities import (
     InvalidAwsLambdaName,
@@ -1799,7 +1796,7 @@ class ZappaCLI:
 
         non_strings = []
         for (k, v) in environment.items():
-            if not isinstance(v, basestring):
+            if not isinstance(v, str):
                 non_strings.append(k)
         if non_strings:
             raise ValueError(
