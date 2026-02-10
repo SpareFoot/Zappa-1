@@ -1,9 +1,9 @@
 import base64
+import io
 import logging
 import sys
 from urllib.parse import urlencode
 
-import six
 from requestlogger import ApacheFormatter
 from werkzeug import urls
 
@@ -79,12 +79,12 @@ def create_wsgi_request(
             body = base64.b64decode(encoded_body)
         else:
             body = event_info["body"]
-            if isinstance(body, six.string_types):
+            if isinstance(body, str):
                 body = body.encode("utf-8")
 
     else:
         body = event_info["body"]
-        if isinstance(body, six.string_types):
+        if isinstance(body, str):
             body = body.encode("utf-8")
 
     # Make header names canonical, e.g. content-type => Content-Type
@@ -130,7 +130,7 @@ def create_wsgi_request(
             environ["CONTENT_TYPE"] = headers["Content-Type"]
 
         # This must be Bytes or None
-        environ["wsgi.input"] = six.BytesIO(body)
+        environ["wsgi.input"] = io.BytesIO(body)
         if body:
             environ["CONTENT_LENGTH"] = str(len(body))
         else:
