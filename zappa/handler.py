@@ -9,8 +9,6 @@ import os
 import sys
 import tarfile
 import traceback
-from builtins import str
-
 import boto3
 from werkzeug.wrappers import Response
 
