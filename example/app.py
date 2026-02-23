@@ -13,4 +13,4 @@ def lambda_handler(event=None, context=None):
     return 'Flask says Hello!!'
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
