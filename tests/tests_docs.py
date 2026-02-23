@@ -94,7 +94,7 @@ class TestDocs(unittest.TestCase):
                 "  README.test.md to manually compare."
             )
 
-        self.assertEquals(
+        self.assertEqual(
             "".join(old_readme),
             new_readme,
             "README doesn't match after regenerating TOC\n\n"
