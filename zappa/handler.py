@@ -8,8 +8,8 @@ import logging
 import os
 import sys
 import tarfile
+import tempfile
 import traceback
-from builtins import str
 
 import boto3
 from werkzeug.wrappers import Response
@@ -30,6 +30,24 @@ except ImportError as e:  # pragma: no cover
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+def _safe_tar_extract(tar, dest_path):
+    """Validate all tar members resolve within dest_path before extraction.
+
+    Prevents path traversal (tar slip / CWE-22) by rejecting members
+    whose resolved path falls outside the destination directory.
+    """
+    dest_path = os.path.realpath(dest_path)
+    for member in tar.getmembers():
+        member_path = os.path.realpath(os.path.join(dest_path, member.name))
+        if not member_path.startswith(dest_path + os.sep) and member_path != dest_path:
+            raise ValueError(
+                "Tar member {!r} would extract outside target directory".format(
+                    member.name
+                )
+            )
+    tar.extractall(dest_path)
 
 
 class LambdaHandler:
@@ -179,8 +197,15 @@ class LambdaHandler:
             s3 = boto_session.resource("s3")
             archive_on_s3 = s3.Object(remote_bucket, remote_file).get()
 
-            with tarfile.open(fileobj=archive_on_s3["Body"], mode="r|gz") as t:
-                t.extractall(project_folder)
+            # Buffer streaming body to a temp file so we can validate
+            # tar members before extraction (prevents tar slip / CWE-22).
+            with tempfile.NamedTemporaryFile(suffix=".tar.gz") as tmp:
+                for chunk in archive_on_s3["Body"].iter_chunks():
+                    tmp.write(chunk)
+                tmp.flush()
+                tmp.seek(0)
+                with tarfile.open(fileobj=tmp, mode="r:gz") as t:
+                    _safe_tar_extract(t, project_folder)
 
         # Add to project path
         sys.path.insert(0, project_folder)
