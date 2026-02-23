@@ -13,9 +13,26 @@ from urllib.parse import urlparse
 
 import botocore
 import durationpy
-from past.builtins import basestring
 
 LOG = logging.getLogger(__name__)
+
+
+def validate_path_within_directory(path, directory):
+    """Ensure the resolved *path* falls within *directory*.
+
+    Prevents path-traversal attacks (CWE-22 / CWE-23) by comparing the
+    ``os.path.realpath`` of both arguments.
+
+    Returns the resolved path on success; raises ``ValueError`` otherwise.
+    """
+    real_path = os.path.realpath(path)
+    real_directory = os.path.realpath(directory)
+    if not real_path.startswith(real_directory + os.sep) and real_path != real_directory:
+        raise ValueError(
+            "Path {!r} resolves outside directory {!r}".format(path, directory)
+        )
+    return real_path
+
 
 ##
 # Settings / Packaging
@@ -613,7 +630,7 @@ def validate_name(name, maxlen=80):
     Return: the name
     Raise: InvalidAwsLambdaName, if the name is invalid.
     """
-    if not isinstance(name, basestring):
+    if not isinstance(name, str):
         msg = "Name must be of type string"
         raise InvalidAwsLambdaName(msg)
     if len(name) > maxlen:
