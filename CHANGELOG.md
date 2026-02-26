@@ -1,5 +1,41 @@
 # Zappa Changelog
 
+## 0.54.0 (Security)
+
+* **Security:** Remediate 143 Snyk vulnerabilities (DATA-1431)
+* Upgrade Werkzeug from <1.0 to >=3.0.6 -- migrate `werkzeug.urls.url_unquote` to `urllib.parse.unquote` (stdlib)
+* Upgrade Django test dependency from 3.1.7 to >=4.2 LTS (addresses ~30 CVEs including SQL Injection)
+* Upgrade Flask test dependency from 1.1.2 to >=3.0 (CVE-2023-30861)
+* Upgrade certifi to >=2024.7.4 (CVE-2023-37920)
+* Upgrade urllib3 to >=1.26.18 (multiple CVEs)
+* Upgrade requests to >=2.32.0
+* Upgrade wheel to >=0.44.0, tqdm to >=4.66.3, idna to >=3.7, black to >=24.3.0
+* Remove `future` package (CVE-2022-40899 High ReDoS) and `six` from direct dependencies
+* Remove all Python 2/3 compatibility imports (`builtins`, `past.builtins`, `six`)
+* Fix path traversal vulnerabilities in `core.py` (CWE-23, 8 locations)
+* Fix tar slip vulnerability in `handler.py` (CWE-22)
+* Fix zip extraction path traversal in `core.py`
+* Add `validate_path_within_directory` utility function
+* Replace SHA-1 with SHA-256 for CloudWatch rule naming (CWE-916)
+  * **Note:** Existing deployed CloudWatch rule names will change on redeployment; old rules become orphaned
+* Fix debug mode enabled in `example/app.py` (CWE-489)
+* Fix reflected XSS in `tests/test_wsgi_script_name_app.py` (CWE-79)
+* Remove `distutils.dir_util.copy_tree` dependency in `core.py` — replaced with Zappa's own `copytree` from `utilities.py`
+  * `distutils` was deprecated in Python 3.10 (PEP 632) and removed from stdlib in Python 3.12
+* Replace `nose` test runner with `pytest` (`pytest-cov` for coverage, built-in `--durations` for timing)
+  * `nose` is abandoned (last release 2016) and broken on Python 3.10+ (`collections.Callable` removed)
+  * Zero test code changes — all tests are standard `unittest.TestCase`
+* Add `python_requires='>=3.10,<3.14'` to `setup.py`
+* Narrow supported Python versions to 3.10–3.13 (drop 3.8/3.9 — both EOL)
+* Update setup.py classifiers for Python 3.10-3.13 and Django 4.2
+* Update Travis CI matrix to Python 3.10–3.13 on Ubuntu Jammy
+* Fix manylinux wheel ABI tag generation for Python 3.10+ (`cp310`, `cp311`, etc. instead of hardcoded `cp38`)
+* Update manylinux wheel regex to match modern PEP 600 naming (`manylinux_2_17`, double ABI tags)
+* Fix `get_manylinux_wheel_url` crash on PyPI 404 responses (missing `releases` key)
+* Fix deprecated `assertEquals` usage in tests (removed in Python 3.12)
+* Fix `sys.stdout.getvalue()` incompatibility with pytest stdout capture in `test_certify_sanity_checks`
+* Replace stale manylinux tests (Python 3.6/3.7/3.8) with generalized `_test_get_manylinux_for_python` covering 3.10–3.13
+
 ## 0.53.0
 
 * Deprecated ACME v1 for Lets Encrypt

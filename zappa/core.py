@@ -21,8 +21,6 @@ import tempfile
 import time
 import uuid
 import zipfile
-from builtins import bytes, int
-from distutils.dir_util import copy_tree
 from io import open
 
 import boto3
@@ -43,6 +41,7 @@ from .utilities import (
     get_venv_from_python_version,
     human_size,
     remove_event_source,
+    validate_path_within_directory,
 )
 
 ##
@@ -305,22 +304,31 @@ class Zappa:
 
         self.runtime = runtime
 
-        if self.runtime == "python3.6":
-            self.manylinux_suffix_start = "cp36m"
-        elif self.runtime == "python3.7":
-            self.manylinux_suffix_start = "cp37m"
+        # Build the cpython ABI tag used to match manylinux wheel filenames.
+        # Python 3.7 and earlier appended 'm' (pymalloc); 3.8+ dropped it.
+        # Each version has its own tag (cp310, cp311, …).
+        if self.runtime and self.runtime.startswith("python"):
+            version_str = self.runtime.replace("python", "").replace(".", "")
+            major_minor = self.runtime.replace("python", "").split(".")
+            minor = int(major_minor[1]) if len(major_minor) > 1 else 0
+            if minor <= 7:
+                self.manylinux_suffix_start = f"cp{version_str}m"
+            else:
+                self.manylinux_suffix_start = f"cp{version_str}"
         else:
-            # The 'm' has been dropped in python 3.8+ since builds with and without pymalloc are ABI compatible
-            # See https://github.com/pypa/manylinux for a more detailed explanation
-            self.manylinux_suffix_start = "cp38"
+            self.manylinux_suffix_start = "cp310"
 
-        # AWS Lambda supports manylinux1/2010 and manylinux2014
-        manylinux_suffixes = ("2014", "2010", "1")
+        # AWS Lambda supports manylinux1/2010/2014 and the newer
+        # PEP 600 naming (manylinux_2_17, etc.).  Modern wheels embed
+        # both forms, e.g. "manylinux_2_17_x86_64.manylinux2014_x86_64.whl".
+        # Python 3.8+ wheels also double the ABI tag (cp312-cp312-).
+        manylinux_suffixes = ("_2_17", "_2_28", "_2_24", "2014", "2010", "1")
+        manylinux_alt = "|".join(manylinux_suffixes)
         self.manylinux_wheel_file_match = re.compile(
-            f'^.*{self.manylinux_suffix_start}-manylinux({"|".join(manylinux_suffixes)})_x86_64.whl$'
+            rf"^.*{self.manylinux_suffix_start}(-{self.manylinux_suffix_start})?-manylinux({manylinux_alt})_x86_64\.(?:manylinux\w+\.)?whl$"
         )
         self.manylinux_wheel_abi3_file_match = re.compile(
-            f'^.*cp3.-abi3-manylinux({"|".join(manylinux_suffixes)})_x86_64.whl$'
+            rf"^.*cp3\d+-abi3-manylinux({manylinux_alt})_x86_64\.(?:manylinux\w+\.)?whl$"
         )
 
         self.endpoint_urls = endpoint_urls
@@ -416,9 +424,11 @@ class Zappa:
                     ]
                 )
                 for pkg in pkgs:
+                    dest = os.path.join(temp_package_path, pkg)
+                    validate_path_within_directory(dest, temp_package_path)
                     copytree(
                         os.path.join(egg_path, pkg),
-                        os.path.join(temp_package_path, pkg),
+                        dest,
                         metadata=False,
                         symlinks=False,
                     )
@@ -426,6 +436,7 @@ class Zappa:
         if temp_package_path:
             # now remove any egg-links as they will cause issues if they still exist
             for link in glob.glob(os.path.join(temp_package_path, "*.egg-link")):
+                validate_path_within_directory(link, temp_package_path)
                 os.remove(link)
 
     def get_deps_list(self, pkg_name, installed_distros=None):
@@ -640,6 +651,7 @@ class Zappa:
                 copytree(cwd, temp_project_path, metadata=False, symlinks=False)
             for glob_path in exclude_glob:
                 for path in glob.glob(os.path.join(temp_project_path, glob_path)):
+                    validate_path_within_directory(path, temp_project_path)
                     try:
                         os.remove(path)
                     except OSError:  # is a directory
@@ -649,7 +661,9 @@ class Zappa:
         # because that's where AWS Lambda looks for it. It can't be inside a package.
         if handler_file:
             filename = handler_file.split(os.sep)[-1]
-            shutil.copy(handler_file, os.path.join(temp_project_path, filename))
+            dest = os.path.join(temp_project_path, filename)
+            validate_path_within_directory(dest, temp_project_path)
+            shutil.copy(handler_file, dest)
 
         # Create and populate package ID file and write to temp project path
         package_info = {}
@@ -746,7 +760,7 @@ class Zappa:
         if egg_links:
             self.copy_editable_packages(egg_links, temp_package_path)
 
-        copy_tree(temp_package_path, temp_project_path, update=True)
+        copytree(temp_package_path, temp_project_path, metadata=False, symlinks=False)
 
         # Then the pre-compiled packages..
         if use_precompiled_packages:
@@ -773,6 +787,19 @@ class Zappa:
                             ignore_errors=True,
                         )
                         with zipfile.ZipFile(cached_wheel_path) as zfile:
+                            for zip_info in zfile.infolist():
+                                member_path = os.path.realpath(
+                                    os.path.join(temp_project_path, zip_info.filename)
+                                )
+                                real_dest = os.path.realpath(temp_project_path)
+                                if (
+                                    not member_path.startswith(real_dest + os.sep)
+                                    and member_path != real_dest
+                                ):
+                                    raise ValueError(
+                                        "Zip member {!r} would extract outside "
+                                        "target directory".format(zip_info.filename)
+                                    )
                             zfile.extractall(temp_project_path)
 
             except Exception as e:
@@ -782,6 +809,7 @@ class Zappa:
         # Cleanup
         for glob_path in exclude_glob:
             for path in glob.glob(os.path.join(temp_project_path, glob_path)):
+                validate_path_within_directory(path, temp_project_path)
                 try:
                     os.remove(path)
                 except OSError:  # is a directory
@@ -1020,11 +1048,15 @@ class Zappa:
                 data = res.json()
             except Exception as e:  # pragma: no cover
                 return None, None
+
+            if "releases" not in data:
+                return None, None
+
             with open(json_file_path, "wb") as metafile:
                 jsondata = json.dumps(data)
                 metafile.write(bytes(jsondata, "utf-8"))
 
-        if package_version not in data["releases"]:
+        if package_version not in data.get("releases", {}):
             return None, None
 
         for f in data["releases"][package_version]:
@@ -3190,7 +3222,7 @@ class Zappa:
         This allows support for rule names that may be longer than the 64 char limit.
         """
         event_name = event.get("name", function)
-        name_hash = hashlib.sha1(
+        name_hash = hashlib.sha256(
             "{}-{}".format(lambda_name, event_name).encode("UTF-8")
         ).hexdigest()
         return Zappa.get_event_name(name_hash, function)
