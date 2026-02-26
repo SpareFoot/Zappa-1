@@ -15,6 +15,12 @@ import botocore
 import durationpy
 
 LOG = logging.getLogger(__name__)
+SUPPORTED_PYTHON_VERSIONS = {
+    "3.10": "python3.10",
+    "3.11": "python3.11",
+    "3.12": "python3.12",
+    "3.13": "python3.13",
+}
 
 
 def validate_path_within_directory(path, directory):
@@ -204,21 +210,29 @@ def detect_flask_apps():
     return matches
 
 
-def get_venv_from_python_version():
-    return "python{}.{}".format(*sys.version_info)
+def __get_local_python_version() -> str:
+    """Get the Python version in the environment where the Zappa package is being used to deploy the code"""
+    major_version, minor_version = sys.version_info[0:2]
+    return f'{major_version}.{minor_version}'
 
 
-def get_runtime_from_python_version():
-    """ """
-    if sys.version_info[0] < 3:
-        raise ValueError("Python 2.x is no longer supported.")
-    else:
-        if sys.version_info[1] <= 6:
-            return "python3.6"
-        elif sys.version_info[1] <= 7:
-            return "python3.7"
-        else:
-            return "python3.8"
+def get_venv_from_python_version() -> str:
+    """Return the python version to be able to build a filesystem path"""
+    return f"python{__get_local_python_version()}"
+
+
+def is_supported_version() -> bool:
+    """Check if the Python version is supported"""
+    return __get_local_python_version() in SUPPORTED_PYTHON_VERSIONS
+
+
+def get_runtime_from_python_version() -> str:
+    """Get the AWS Lambda runtime from the local Python version"""
+    python_version = __get_local_python_version()
+    try:
+        return SUPPORTED_PYTHON_VERSIONS[python_version]
+    except KeyError as exc:
+        raise ValueError(f"Python {python_version} is not supported.") from exc
 
 
 ##

@@ -1,16 +1,8 @@
 import sys
+from zappa.utilities import is_supported_version
 
-SUPPORTED_VERSIONS = [(3, 10), (3, 11), (3, 12), (3, 13)]
 
-if sys.version_info[:2] not in SUPPORTED_VERSIONS:
-    formatted_supported_versions = [
-        "{}.{}".format(*version) for version in SUPPORTED_VERSIONS
-    ]
-    err_msg = "This version of Python ({}.{}) is not supported!\n".format(
-        *sys.version_info
-    ) + "Zappa (and AWS Lambda) support the following versions of Python: {}".format(
-        formatted_supported_versions
-    )
-    raise RuntimeError(err_msg)
+if not is_supported_version():
+    raise RuntimeError(f"Python {sys.version_info[0]}.{sys.version_info[1]} is not supported!")
 
 __version__ = "0.54.0"
