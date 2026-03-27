@@ -124,7 +124,7 @@ pyyaml==5.4.1
     #   kappa
 regex==2021.4.4
     # via black
-requests==2.25.1
+requests==2.33.0
     # via
     #   -r requirements.in
     #   coveralls
