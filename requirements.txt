@@ -57,7 +57,7 @@ pyyaml==5.4.1
     #   -r requirements.in
     #   cfn-flip
     #   kappa
-requests==2.25.1
+requests==2.33.0
     # via -r requirements.in
 s3transfer==0.3.6
     # via boto3
